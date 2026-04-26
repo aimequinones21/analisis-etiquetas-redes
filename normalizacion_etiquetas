@@ -1,0 +1,83 @@
+import pandas as pd
+import unicodedata
+import re
+
+
+pd.set_option("display.max_columns", None)
+pd.set_option("display.max_colwidth", None)
+
+# cargar
+df = pd.read_csv(r"C:\Users\pc\Desktop\Aime\Documents\Licenciatura en Ciencias de Datos\Práctica profesional\etiquetas.csv")
+
+# pasar a minúsculas
+df = df.apply(lambda col: col.str.lower() if col.dtype == "object" else col)
+
+# quitar tildes
+def quitar_tildes(texto):
+    if isinstance(texto, str):
+        return "".join(
+            c for c in unicodedata.normalize("NFD", texto)
+            if unicodedata.category(c) != "Mn"
+        )
+    return texto
+
+df = df.apply(lambda col: col.map(quitar_tildes) if col.dtype == "object" else col)
+df = df.apply(lambda col: col.str.strip() if col.dtype == "object" else col)
+df["Tema"] = df["Tema"].fillna("sin_tema")
+df["Tema"] = df["Tema"].replace("", "sin_tema")
+df["Tema"] = df["Tema"].astype(str).apply(lambda x: re.sub(r"[^\w\s]", "", x))
+df["Subtema"] = df["Subtema"].astype(str).apply(lambda x: re.sub(r"[^\w\s]", "", x))
+df["Subtema 2"] = df["Subtema 2"].astype(str).apply(lambda x: re.sub(r"[^\w\s]", "", x))
+df_ordenado = df.sort_values(by="Tema", key=lambda x: x.str.strip())
+
+df_ordenado.to_excel("etiquetas_ordenadas.xlsx", index=False)
+df_ordenado.to_csv("etiquetas_ordenadas.csv", index=False)
+# ver
+####print(df_ordenado .head())
+temas = df["Tema"].dropna().astype(str).unique()
+temas_ordenados = sorted(temas)
+
+# print("\n--- TEMAS CON 'abuso' ---")
+# for t in temas_ordenados:
+#     if "abus" in t:
+#        print(t)
+# print("\n--- TEMAS CON 'accidente' ---")
+# for t in temas_ordenados:
+#     if "acci" in t:
+#         print(t)
+
+# from difflib import get_close_matches
+#
+# temas = df["Tema"].dropna().astype(str).unique()
+#
+# print("\n--- POSIBLES ERRORES ORTOGRÁFICOS ---")
+#
+# for t in temas:
+#     similares = get_close_matches(t, temas, n=3, cutoff=0.85)
+#     if len(similares) > 1:
+#         print(f"\nBase: {t}")
+#         print(similares
+
+correcciones = {
+    "accicente laboral": "accidente laboral",
+    "volencia": "violencia",
+    "corrupion": "corrupcion",
+    "recilaje": "reciclaje",
+    "seguriad urbana": "seguridad urbana",
+    "seguidad urbana": "seguridad urbana",
+    "violncia institucional": "violencia institucional",
+    "violencia intitucional": "violencia institucional",
+    "nacotrafico": "narcotrafico",
+    "nacrotrafico": "narcotrafico",
+    "persecusion": "persecucion",
+    "fallecimieto": "fallecimiento",
+    "dicapacidad": "discapacidad",
+    "declaciones de politicos": "declaraciones de politicos",
+    "declaraiones de famosos": "declaraciones de famosos",
+    "maltraro infantil": "maltrato infantil",
+    "desforestacion": "deforestacion"
+}
+df["Tema"] = df["Tema"].replace(correcciones)
+df = df.sort_values(by="Tema").reset_index(drop=True)
+df.to_excel("etiquetas_corregidas_1.xlsx", index=False)
+print(df["Tema"].value_counts().head(40))
